@@ -1,18 +1,18 @@
-
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDown,
-  ArrowRight,
   Volume2,
   VolumeX,
   Heart,
-  Camera,
   Maximize,
   Minimize,
+  ArrowRight,
+  ArrowDown,
+  Camera,
 } from "lucide-react";
+import { triggerCelebration } from "./celebration";
 
 interface CinematicLandingProps {
   isOpen: boolean;
@@ -23,13 +23,15 @@ const WEDDING_DATE = new Date("2026-11-15T12:00:00+05:30");
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
+const emptySubscribe = () => () => {};
+
 export function CinematicLanding({
   isOpen,
   onOpen,
 }: CinematicLandingProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
-  const [mounted, setMounted] = useState(false);
   const [muted, setMuted] = useState(true);
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -38,40 +40,38 @@ export function CinematicLanding({
     seconds: 0,
   });
   const videoContainerRef = useRef<HTMLDivElement>(null);
-const [isFullscreen, setIsFullscreen] = useState(false);
 
-const toggleFullscreen = async () => {
-  const container = videoContainerRef.current;
-  if (!container) return;
+  const isFullscreen = useSyncExternalStore(
+    (callback) => {
+      document.addEventListener("fullscreenchange", callback);
+      document.addEventListener("webkitfullscreenchange", callback);
+      return () => {
+        document.removeEventListener("fullscreenchange", callback);
+        document.removeEventListener("webkitfullscreenchange", callback);
+      };
+    },
+    () => !!document.fullscreenElement,
+    () => false
+  );
 
-  try {
-    if (!document.fullscreenElement) {
-      await container.requestFullscreen();
-    } else {
-      await document.exitFullscreen();
+  const toggleFullscreen = useCallback(async () => {
+    const container = videoContainerRef.current;
+    if (!container) return;
+
+    if (!document.fullscreenEnabled) {
+      console.warn("Fullscreen not enabled in this browser.");
+      return;
     }
-  } catch (error) {
-    console.error("Fullscreen error:", error);
-  }
-};
 
-useEffect(() => {
-  const handleFullscreenChange = () => {
-    setIsFullscreen(!!document.fullscreenElement);
-  };
-
-  document.addEventListener("fullscreenchange", handleFullscreenChange);
-
-  return () => {
-    document.removeEventListener(
-      "fullscreenchange",
-      handleFullscreenChange
-    );
-  };
-}, []);
-
-  useEffect(() => {
-    setMounted(true);
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await container.requestFullscreen();
+      }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+    }
   }, []);
 
   // Countdown timer: 15 November 2026, 12 PM IST.
@@ -134,8 +134,13 @@ useEffect(() => {
     setMuted((previous) => !previous);
   };
 
-  const handleOpen = () => {
-    if (isOpen) return;
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+  const [isOpening, setIsOpening] = useState(false);
+
+  const handleOpen = async () => {
+    if (isOpen || isOpening) return;
+    setIsOpening(true);
+    await triggerCelebration(openButtonRef.current);
     onOpen();
   };
 
@@ -159,7 +164,7 @@ useEffect(() => {
         >
           {/* Background texture */}
           <div className="pointer-events-none fixed inset-0 z-30 opacity-[0.07] mix-blend-screen">
-            <div className="h-full w-full bg-[url('/images/film-grain.png')] bg-repeat" />
+            <div className="h-full w-full bg-[var(--film-grain)] bg-repeat" />
           </div>
 
           {/* Main hero */}
@@ -263,7 +268,7 @@ useEffect(() => {
                 transition={{ delay: 2.1, duration: 1, ease }}
                 className="mt-12 flex w-full max-w-[490px] justify-center"
               >
-                {countdownItems.map((item, index) => (
+                {countdownItems.map((item) => (
                   <div
                     key={item.label}
                     className="flex flex-1 flex-col items-center border-r border-[#FFF6EF]/20 last:border-r-0"
@@ -280,21 +285,25 @@ useEffect(() => {
 
               {/* Open invitation */}
               <motion.button
+                ref={openButtonRef}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 2.4, duration: 1, ease }}
                 onClick={handleOpen}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                className="group mt-12 flex items-center gap-5 border border-[#E5B7A9]/70 bg-[#390A16]/55 px-8 py-4 backdrop-blur-md transition-all duration-500 hover:border-[#FFF6EF] hover:bg-[#641B2B]/80 md:px-11"
+                disabled={isOpening}
+                whileHover={isOpening ? {} : { scale: 1.04 }}
+                whileTap={isOpening ? {} : { scale: 0.97 }}
+                className="group relative mt-12 flex items-center gap-5 overflow-hidden border border-[#E5B7A9]/70 bg-[#390A16]/55 px-8 py-4 backdrop-blur-md transition-all duration-500 hover:border-[#FFF6EF] hover:bg-[#641B2B]/80 md:px-11"
               >
                 <span className="text-[9px] uppercase tracking-[0.35em] text-[#FFF6EF]">
-                  Open invitation
+                  {isOpening ? "Opening celebration..." : "Open invitation"}
                 </span>
                 <ArrowRight
                   size={15}
                   strokeWidth={1.3}
-                  className="text-[#E5B7A9] transition-transform duration-500 group-hover:translate-x-2"
+                  className={`text-[#E5B7A9] transition-transform duration-500 ${
+                    isOpening ? "translate-x-2 animate-pulse" : "group-hover:translate-x-2"
+                  }`}
                 />
               </motion.button>
 
@@ -341,64 +350,59 @@ useEffect(() => {
                 </p>
               </div>
 
+              <div
+                ref={videoContainerRef}
+                className="group relative mx-auto max-w-4xl overflow-hidden border border-[#D9AAA6]/25 bg-[#390A16] [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:max-w-none [&:fullscreen]:border-0 [&:fullscreen]:bg-black"
+              >
+                {/* Save the Date Video */}
+                <video
+                  ref={videoRef}
+                  src="/video/IMG_3629.MP4"
+                  poster="/images/IMG_3621.JPG.jpeg"
+                  autoPlay
+                  muted={muted}
+                  loop
+                  playsInline
+                  preload="metadata"
+                  className="aspect-video w-full object-cover [&:fullscreen]:h-full [&:fullscreen]:w-full [&:fullscreen]:object-contain"
+                />
 
-<div
-  ref={videoContainerRef}
-  className="group relative mx-auto max-w-4xl overflow-hidden border border-[#D9AAA6]/25 bg-[#390A16] [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:max-w-none [&:fullscreen]:border-0 [&:fullscreen]:bg-black"
->
-  {/* Save the Date Video */}
-  <video
-    ref={videoRef}
-    src="/video/IMG_3629.MP4"
-    poster="/images/IMG_3621.JPG.jpeg"
-    autoPlay
-    muted={muted}
-    loop
-    playsInline
-    preload="metadata"
-    className="aspect-video w-full object-cover [&:fullscreen]:h-full [&:fullscreen]:w-full [&:fullscreen]:object-contain"
-  />
+                {/* Video Controls */}
+                <div className="absolute bottom-5 right-5 z-10 flex items-center gap-3">
+                  {/* Mute / Unmute */}
+                  <button
+                    type="button"
+                    onClick={toggleSound}
+                    aria-label={muted ? "Unmute video" : "Mute video"}
+                    title={muted ? "Unmute" : "Mute"}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-[#24070D]/75 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-[#D9AAA6] hover:bg-[#641B2B]"
+                  >
+                    {muted ? (
+                      <VolumeX size={18} strokeWidth={1.6} />
+                    ) : (
+                      <Volume2 size={18} strokeWidth={1.6} />
+                    )}
+                  </button>
 
+                  {/* Fullscreen / Exit Fullscreen */}
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-[#24070D]/75 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-[#D9AAA6] hover:bg-[#641B2B]"
+                  >
+                    {isFullscreen ? (
+                      <Minimize size={18} strokeWidth={1.6} />
+                    ) : (
+                      <Maximize size={18} strokeWidth={1.6} />
+                    )}
+                  </button>
+                </div>
 
-
-  {/* Video Controls */}
-  <div className="absolute bottom-5 right-5 z-10 flex items-center gap-3">
-
-    {/* Mute / Unmute */}
-    <button
-      type="button"
-      onClick={toggleSound}
-      aria-label={muted ? "Unmute video" : "Mute video"}
-      title={muted ? "Unmute" : "Mute"}
-      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-[#24070D]/75 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-[#D9AAA6] hover:bg-[#641B2B]"
-    >
-      {muted ? (
-        <VolumeX size={18} strokeWidth={1.6} />
-      ) : (
-        <Volume2 size={18} strokeWidth={1.6} />
-      )}
-    </button>
-
-    {/* Fullscreen / Exit Fullscreen */}
-    <button
-      type="button"
-      onClick={toggleFullscreen}
-      aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-      title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-[#24070D]/75 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-[#D9AAA6] hover:bg-[#641B2B]"
-    >
-      {isFullscreen ? (
-        <Minimize size={18} strokeWidth={1.6} />
-      ) : (
-        <Maximize size={18} strokeWidth={1.6} />
-      )}
-    </button>
-  </div>
-
-  {/* Bottom cinematic gradient */}
-  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#24070D]/50 to-transparent" />
-</div>
-
+                {/* Bottom cinematic gradient */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#24070D]/50 to-transparent" />
+              </div>
 
               <div className="mt-9 flex items-center justify-center gap-3 text-[#D9AAA6]">
                 <Camera size={14} strokeWidth={1.3} />

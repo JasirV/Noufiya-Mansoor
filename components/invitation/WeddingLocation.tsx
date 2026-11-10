@@ -4,7 +4,7 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { WeddingData } from "@/data/wedding";
-import { MapPin, Navigation, ArrowUpRight } from "lucide-react";
+import { MapPin, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 export function WeddingLocation() {
@@ -40,8 +40,8 @@ export function WeddingLocation() {
           </h2>
 
           <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-[#887771]">
-            We can't wait to celebrate this special day with you.
-            Here's where our beautiful journey begins.
+            We can&apos;t wait to celebrate this special day with you.
+            Here&apos;s where our beautiful journey begins.
           </p>
         </motion.div>
 

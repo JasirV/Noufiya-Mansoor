@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -272,7 +271,6 @@ export function WeddingCountdown() {
 
       {/* Content */}
       <div className="relative z-20 mx-auto flex max-w-3xl flex-col items-center">
-
         {/* Recording status */}
         <div className="countdown-rec mb-12 flex items-center gap-3 rounded-full border border-[#FF3448]/30 bg-black/25 px-5 py-2.5 backdrop-blur-sm">
           <span className="countdown-rec-dot h-2.5 w-2.5 rounded-full bg-[#FF263D] shadow-[0_0_12px_3px_rgba(255,38,61,0.55)]" />
@@ -360,7 +358,6 @@ export function WeddingCountdown() {
           </span>
           <span className="h-px w-8 bg-[#FF3448]" />
         </div>
-
       </div>
     </section>
   );

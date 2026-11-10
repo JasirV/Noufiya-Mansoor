@@ -1,104 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { ChevronDown } from "lucide-react";
-import { motion, useAnimation } from "framer-motion";
+import { motion } from "framer-motion";
+import { triggerCelebration } from "./celebration";
 
 interface OpeningInvitationProps {
   isOpen: boolean;
   onOpen: () => void;
 }
 
+const subscribe = () => () => {};
+
 export function OpeningInvitation({ isOpen, onOpen }: OpeningInvitationProps) {
-  const [mounted, setMounted] = useState(false);
-  const controls = useAnimation();
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  const buttonRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const handleBurst = useCallback(() => {
-    const dedupe = (args: unknown[]) =>
-      args.filter(
-        (_: unknown, i: number, arr: unknown[]) => arr.indexOf(_) === i
-      );
-
-    const defaults = {
-      spread: 100,
-      ticks: 60,
-      gravity: 0.5,
-      scalar: 1,
-    };
-
-    const fire = ({
-      particleRatio,
-      ...rest
-    }: {
-      particleRatio: number;
-    }) => {
-      const el = document.createElement("canvas");
-      const ctx = el.getContext("2d");
-      if (!ctx) return;
-
-      confetti({
-        ...defaults,
-        ...rest,
-        particleRatio,
-        shapes: ["circle"],
-        scalar: defaults.scalar,
-        startVelocity: 25,
-        origin: { y: 0.6 },
-      });
-    };
-
-    const centerPiece = {
-      particleRatio: 0.25,
-      spread: 70,
-      startVelocity: 40,
-      colors: ["#783D46", "#FAF8F4", "#FFFFFF"],
-    };
-
-    const left = {
-      particleRatio: 0.2,
-      spread: 70,
-      startVelocity: 30,
-      origin: { x: 0.3, y: 0.6 },
-      colors: ["#783D46", "#FAF8F4"],
-    };
-
-    const right = {
-      particleRatio: 0.2,
-      spread: 70,
-      startVelocity: 30,
-      origin: { x: 0.7, y: 0.6 },
-      colors: ["#783D46", "#FAF8F4"],
-    };
-
-    const tail = {
-      particleRatio: 0.15,
-      spread: 120,
-      startVelocity: 30,
-      origin: { y: 0.5 },
-      colors: ["#FFFFFF", "#FAF8F4"],
-    };
-
-    fire(centerPiece);
-    setTimeout(() => fire(left), 100);
-    setTimeout(() => fire(right), 200);
-    setTimeout(() => fire(tail), 300);
-  }, []);
-
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback(async () => {
     if (isOpen) return;
+    await triggerCelebration(buttonRef.current);
     onOpen();
-    setTimeout(() => handleBurst(), 350);
-  }, [isOpen, onOpen, handleBurst]);
+  }, [isOpen, onOpen]);
 
   if (!mounted) return null;
 
   return (
     <motion.div
+      ref={buttonRef}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: isOpen ? 0 : 1, y: isOpen ? 20 : 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}

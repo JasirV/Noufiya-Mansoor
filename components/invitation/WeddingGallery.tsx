@@ -26,10 +26,9 @@ export function WeddingGallery() {
   const navigate = (dir: "prev" | "next") => {
     if (activeIndex === null) return;
     const next = dir === "next" ? activeIndex + 1 : activeIndex - 1;
-    if (next >= 0 && next < galleryImages.length) {
-      setActiveIndex(next);
-      setLightboxImage(galleryImages[next]);
-    }
+    const clampedNext = Math.max(0, Math.min(galleryImages.length - 1, next));
+    setActiveIndex(clampedNext);
+    setLightboxImage(galleryImages[clampedNext]);
   };
 
   const gridImages = galleryImages.filter((_, i) => i !== 0);
